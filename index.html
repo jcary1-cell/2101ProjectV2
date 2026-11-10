@@ -1,0 +1,1409 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UNC Charlotte | Accessibility Sentiment & Equity Dashboard</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Fonts: Inter and OpenDyslexic alternative -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            uncc: {
+              green: '#00703C',     // Official Charlotte Green
+              darkgreen: '#00512C', // Deep accessible green
+              lightgreen: '#E6F4EA',
+              gold: '#A49665',      // Charlotte Gold
+              darkgold: '#847447',
+              accent: '#B3A369',
+              slate: '#1E293B',
+              surface: '#F8FAFC'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            accessible: ['"Atkinson Hyperlegible"', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Focus styles for keyboard accessibility */
+    *:focus-visible {
+      outline: 3px solid #A49665 !important;
+      outline-offset: 3px !important;
+    }
+
+    /* Dyslexia-friendly text toggle class */
+    .font-dyslexic {
+      font-family: 'Atkinson Hyperlegible', sans-serif !important;
+      letter-spacing: 0.04em !important;
+      word-spacing: 0.08em !important;
+      line-height: 1.75 !important;
+    }
+
+    /* Custom high contrast theme */
+    .high-contrast {
+      background-color: #000000 !important;
+      color: #FFFFFF !important;
+    }
+    .high-contrast .contrast-card {
+      background-color: #121212 !important;
+      border: 2px solid #FFFF00 !important;
+      color: #FFFFFF !important;
+    }
+    .high-contrast .contrast-text {
+      color: #FFFF00 !important;
+    }
+    .high-contrast .contrast-subtext {
+      color: #E2E8F0 !important;
+    }
+    .high-contrast .contrast-btn {
+      background-color: #FFFF00 !important;
+      color: #000000 !important;
+      font-weight: bold !important;
+    }
+
+    /* Custom smooth transition */
+    .sentiment-bar-fill {
+      transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+  </style>
+</head>
+
+<body class="bg-slate-50 text-slate-800 font-sans antialiased min-h-screen transition-colors duration-200">
+
+  <!-- Screen Reader Skip Link -->
+  <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 bg-uncc-green text-white px-4 py-2 rounded-md font-bold z-50 ring-2 ring-uncc-gold">
+    Skip to Main Content
+  </a>
+
+  <!-- Top Accessibility Quick-Toolbar -->
+  <header class="bg-uncc-darkgreen text-white text-xs py-2 px-4 border-b border-uncc-gold/40">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center space-x-2 font-medium">
+        <i class="fa-solid fa-universal-access text-uncc-gold text-base" aria-hidden="true"></i>
+        <span>Accessibility Utilities:</span>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2 sm:gap-4">
+        <!-- Font Size Scaler -->
+        <div class="flex items-center bg-black/25 rounded-lg px-2 py-1 space-x-1" role="group" aria-label="Text Size Controls">
+          <span class="sr-only">Adjust Text Size</span>
+          <button id="btn-font-dec" class="px-2 py-0.5 rounded hover:bg-white/20 transition-colors font-bold text-xs" title="Decrease font size" aria-label="Decrease text size">A-</button>
+          <button id="btn-font-reset" class="px-2 py-0.5 rounded hover:bg-white/20 transition-colors text-xs" title="Reset font size" aria-label="Default text size">Normal</button>
+          <button id="btn-font-inc" class="px-2 py-0.5 rounded hover:bg-white/20 transition-colors font-bold text-xs" title="Increase font size" aria-label="Increase text size">A+</button>
+        </div>
+
+        <!-- Dyslexia font toggle -->
+        <button id="btn-toggle-dyslexic" class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-black/25 hover:bg-white/20 transition-colors" aria-pressed="false">
+          <i class="fa-solid fa-font text-uncc-gold" aria-hidden="true"></i>
+          <span>Hyperlegible Font</span>
+        </button>
+
+        <!-- High Contrast Mode Toggle -->
+        <button id="btn-toggle-contrast" class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-black/25 hover:bg-white/20 transition-colors" aria-pressed="false">
+          <i class="fa-solid fa-circle-half-stroke text-uncc-gold" aria-hidden="true"></i>
+          <span id="contrast-label">High Contrast</span>
+        </button>
+
+        <!-- Audio Briefing (Speech Synth) -->
+        <button id="btn-speech-brief" class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-uncc-gold text-slate-900 font-semibold hover:bg-yellow-400 transition-colors" aria-label="Listen to Audio Summary">
+          <i class="fa-solid fa-volume-high" aria-hidden="true"></i>
+          <span id="speech-btn-text">Listen Summary</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Navigation / Campus Banner -->
+  <nav class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm" aria-label="Main Navigation">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-20">
+        <!-- Logo & Branding -->
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 rounded-xl bg-uncc-green flex items-center justify-center text-white shadow-md shadow-emerald-900/20">
+            <i class="fa-solid fa-pickaxe fa-compass-drafting text-2xl text-uncc-gold" aria-hidden="true"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-bold uppercase tracking-wider text-uncc-green bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">UNC Charlotte</span>
+              <span class="text-xs text-slate-400 font-medium">Campus & Digital Climate</span>
+            </div>
+            <h1 class="text-lg sm:text-xl font-extrabold text-slate-900 leading-tight">
+              Accessibility Sentiment Index
+            </h1>
+          </div>
+        </div>
+
+        <!-- Quick actions -->
+        <div class="flex items-center gap-3">
+          <button id="btn-jump-report" class="hidden sm:inline-flex items-center gap-2 text-sm bg-emerald-50 text-uncc-darkgreen border border-emerald-300 hover:bg-emerald-100 font-semibold px-3 py-2 rounded-lg transition-colors">
+            <i class="fa-solid fa-plus-circle text-uncc-green" aria-hidden="true"></i>
+            <span>Submit Feedback</span>
+          </button>
+          <button id="btn-export-csv" class="inline-flex items-center gap-2 text-sm bg-slate-900 text-white hover:bg-slate-800 font-semibold px-4 py-2 rounded-lg transition-colors shadow-sm">
+            <i class="fa-solid fa-file-arrow-down text-uncc-gold" aria-hidden="true"></i>
+            <span>Export Data</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Live Toast Notification Container -->
+  <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-32 opacity-0 transition-all duration-300 bg-slate-900 text-white px-5 py-3.5 rounded-xl shadow-2xl border border-slate-700 flex items-center gap-3 max-w-md pointer-events-none" role="status" aria-live="polite">
+    <i id="toast-icon" class="fa-solid fa-circle-check text-emerald-400 text-lg"></i>
+    <span id="toast-message" class="text-sm font-medium">Notification message</span>
+  </div>
+
+  <!-- Main Content -->
+  <main id="main-content" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
+
+    <!-- Hero / Orientation Section -->
+    <section class="bg-gradient-to-br from-uncc-darkgreen via-uncc-green to-emerald-900 text-white rounded-3xl p-6 sm:p-10 shadow-xl relative overflow-hidden">
+      <!-- Decorative background pattern -->
+      <div class="absolute -right-10 -bottom-10 opacity-10 pointer-events-none" aria-hidden="true">
+        <i class="fa-solid fa-wheelchair text-[260px]"></i>
+      </div>
+      <div class="relative z-10 max-w-3xl space-y-4">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-sm text-uncc-gold border border-white/15 text-xs font-semibold uppercase tracking-wider">
+          <i class="fa-solid fa-chart-line" aria-hidden="true"></i>
+          Campus Inclusivity & Audit Analysis
+        </div>
+        <h2 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-white leading-tight">
+          Campus & Digital Spaces: Accessibility Sentiment Monitor
+        </h2>
+        <p class="text-emerald-100 text-base sm:text-lg leading-relaxed">
+          Interactive evaluation of community sentiment across primary physical campus grounds and central digital learning environments. Analyze barrier clusters, identify urgent maintenance priorities, and track inclusive design benchmarks.
+        </p>
+
+        <!-- Dynamic Metrics Ribbon -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4">
+          <div class="bg-black/25 backdrop-blur-sm rounded-xl p-3 border border-white/10">
+            <span class="block text-xs text-emerald-200">Average Positive</span>
+            <span id="stat-avg-positive" class="text-2xl font-black text-white">59.6%</span>
+            <span class="text-[11px] text-emerald-300">Across 5 key domains</span>
+          </div>
+          <div class="bg-black/25 backdrop-blur-sm rounded-xl p-3 border border-white/10">
+            <span class="block text-xs text-emerald-200">Benchmark Leader</span>
+            <span class="text-xl font-bold text-uncc-gold truncate">UREC (88%)</span>
+            <span class="text-[11px] text-emerald-300">Inclusive design</span>
+          </div>
+          <div class="bg-black/25 backdrop-blur-sm rounded-xl p-3 border border-white/10">
+            <span class="block text-xs text-emerald-200">Critical Barrier</span>
+            <span class="text-xl font-bold text-rose-300 truncate">Fretwell (50% Neg)</span>
+            <span class="text-[11px] text-rose-200">Mobility & elevators</span>
+          </div>
+          <div class="bg-black/25 backdrop-blur-sm rounded-xl p-3 border border-white/10">
+            <span class="block text-xs text-emerald-200">Digital Realm</span>
+            <span class="text-xl font-bold text-yellow-200 truncate">Canvas (62% Pos)</span>
+            <span class="text-[11px] text-yellow-100">Captioning variance</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Visual Analytics / Comparison Charts Section -->
+    <section class="space-y-4" aria-labelledby="analytics-heading">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 id="analytics-heading" class="text-2xl font-bold text-slate-900">
+            Sentiment Distribution & Comparison
+          </h2>
+          <p class="text-sm text-slate-600">Cross-domain breakdown of Positive, Neutral, and Negative user responses</p>
+        </div>
+
+        <!-- Chart Mode Switcher -->
+        <div class="inline-flex rounded-xl bg-slate-200/80 p-1 text-xs font-semibold text-slate-700" role="tablist" aria-label="Chart Type Selector">
+          <button id="view-chart-stacked" class="px-3.5 py-1.5 rounded-lg bg-white shadow-sm text-slate-900 font-bold transition-all" role="tab" aria-selected="true" aria-controls="chart-container">
+            <i class="fa-solid fa-chart-simple mr-1 text-uncc-green" aria-hidden="true"></i> Stacked Sentiment
+          </button>
+          <button id="view-chart-radar" class="px-3.5 py-1.5 rounded-lg hover:text-slate-900 transition-all" role="tab" aria-selected="false" aria-controls="chart-container">
+            <i class="fa-solid fa-chart-pie mr-1 text-uncc-gold" aria-hidden="true"></i> Multi-Area Breakdown
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Main Chart Card -->
+        <div class="lg:col-span-2 bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200/80">
+          <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+            <span class="text-xs font-bold tracking-wider uppercase text-slate-500">Visual Benchmark (0% - 100%)</span>
+            <div class="flex items-center gap-4 text-xs font-medium">
+              <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-emerald-600"></span> Positive</span>
+              <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-amber-400"></span> Neutral</span>
+              <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-rose-500"></span> Negative</span>
+            </div>
+          </div>
+          <div id="chart-container" class="relative mt-4 w-full h-[320px] sm:h-[360px]">
+            <canvas id="sentimentChart" aria-label="Sentiment distribution chart for UNC Charlotte locations" role="img"></canvas>
+          </div>
+        </div>
+
+        <!-- Quick Insights & Priority Matrix Card -->
+        <div class="bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200/80 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h3 class="font-bold text-slate-900 text-base">Key Action Priorities</h3>
+              <span class="text-xs bg-rose-100 text-rose-800 font-semibold px-2 py-0.5 rounded-full">Urgent Focus</span>
+            </div>
+
+            <ul class="mt-4 space-y-3.5 text-xs text-slate-700">
+              <li class="p-3 rounded-xl bg-rose-50 border border-rose-200/80 flex items-start gap-2.5">
+                <i class="fa-solid fa-triangle-exclamation text-rose-600 text-base mt-0.5" aria-hidden="true"></i>
+                <div>
+                  <strong class="text-rose-950 font-bold block text-sm">Fretwell Building (50% Negative)</strong>
+                  Elevator downtime and non-functioning automated doors severely restrict mobility during class transition periods.
+                </div>
+              </li>
+              <li class="p-3 rounded-xl bg-amber-50 border border-amber-200/80 flex items-start gap-2.5">
+                <i class="fa-solid fa-person-walking-dashed-line-arrow-right text-amber-600 text-base mt-0.5" aria-hidden="true"></i>
+                <div>
+                  <strong class="text-amber-950 font-bold block text-sm">Brick Pathways (37% Negative)</strong>
+                  Uneven pavers and nighttime glare/shadow zones create persistent trip and cane-snag hazards.
+                </div>
+              </li>
+              <li class="p-3 rounded-xl bg-blue-50 border border-blue-200/80 flex items-start gap-2.5">
+                <i class="fa-solid fa-closed-captioning text-blue-600 text-base mt-0.5" aria-hidden="true"></i>
+                <div>
+                  <strong class="text-blue-950 font-bold block text-sm">Canvas LMS (25% Neutral / 13% Neg)</strong>
+                  Unedited automated video captions and untagged course PDFs present cognitive and screen-reader bottlenecks.
+                </div>
+              </li>
+            </ul>
+          </div>
+
+          <div class="mt-4 pt-3 border-t border-slate-100 text-center">
+            <span class="text-[11px] text-slate-500 italic">
+              Audited across Student, Staff, and Faculty accessibility focus groups.
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Interactive Explorer & Filter Controls -->
+    <section class="space-y-6" aria-labelledby="explorer-heading">
+      <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+          <h2 id="explorer-heading" class="text-2xl font-bold text-slate-900">
+            Interactive Space & Facility Explorer
+          </h2>
+          <p class="text-sm text-slate-600">Select any campus site or digital environment to examine qualitative themes, metrics, and targeted interventions.</p>
+        </div>
+
+        <!-- Filter Controls -->
+        <div class="flex flex-wrap items-center gap-2.5">
+          <!-- Type Filter -->
+          <div class="flex items-center rounded-xl bg-white border border-slate-300 p-1 shadow-sm text-xs">
+            <button class="filter-type-btn px-3 py-1.5 rounded-lg bg-uncc-green text-white font-bold transition-all" data-filter="all">All Spaces</button>
+            <button class="filter-type-btn px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all" data-filter="Physical">Physical Grounds</button>
+            <button class="filter-type-btn px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all" data-filter="Digital">Digital Platform</button>
+          </div>
+
+          <!-- Sentiment Tier Filter -->
+          <select id="filter-tier-select" class="text-xs bg-white border border-slate-300 rounded-xl px-3 py-2 font-medium text-slate-700 shadow-sm focus:ring-2 focus:ring-uncc-green" aria-label="Filter by sentiment performance">
+            <option value="all">All Sentiment Ranges</option>
+            <option value="high">High Positive (&gt; 70%)</option>
+            <option value="moderate">Moderate (50% - 70%)</option>
+            <option value="critical">Critical / Needs Action (&lt; 50%)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Search & Sorting Bar -->
+      <div class="bg-white p-3 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col sm:flex-row gap-3 items-center justify-between">
+        <div class="relative w-full sm:w-96">
+          <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-sm" aria-hidden="true"></i>
+          <input type="text" id="space-search" placeholder="Search by name, theme, barrier (e.g., 'ramps', 'captions')..." class="w-full pl-9 pr-4 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 focus:outline-none focus:border-uncc-green focus:ring-1 focus:ring-uncc-green" aria-label="Search campus and digital spaces">
+        </div>
+        <div class="flex items-center gap-2 w-full sm:w-auto justify-end text-xs text-slate-600">
+          <span>Sort By:</span>
+          <button id="sort-pos-desc" class="sort-btn px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 font-semibold transition-colors" title="Sort highest positive sentiment">
+            Highest Satisfaction <i class="fa-solid fa-arrow-down-wide-short ml-1 text-emerald-600"></i>
+          </button>
+          <button id="sort-neg-desc" class="sort-btn px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 font-semibold transition-colors" title="Sort highest negative sentiment">
+            Highest Friction <i class="fa-solid fa-arrow-down-wide-short ml-1 text-rose-600"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Spaces Cards Grid -->
+      <div id="spaces-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" role="region" aria-label="List of campus spaces">
+        <!-- Rendered dynamically through JavaScript -->
+      </div>
+    </section>
+
+    <!-- Deep-Dive Detail Modal (Accessible Dialog) -->
+    <div id="detail-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-desc">
+      <div class="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200 transform transition-all p-6 sm:p-8 space-y-6">
+        
+        <!-- Modal Header -->
+        <div class="flex items-start justify-between pb-4 border-b border-slate-200">
+          <div class="space-y-1">
+            <span id="modal-category" class="inline-block text-xs font-bold uppercase tracking-wider text-uncc-green bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+              Campus Category
+            </span>
+            <h3 id="modal-title" class="text-2xl font-black text-slate-900">
+              Location Name
+            </h3>
+          </div>
+          <button id="modal-close" class="p-2 text-slate-400 hover:text-slate-700 rounded-full hover:bg-slate-100 transition-colors" aria-label="Close dialog">
+            <i class="fa-solid fa-xmark text-xl" aria-hidden="true"></i>
+          </button>
+        </div>
+
+        <div id="modal-desc" class="space-y-5 text-sm text-slate-700">
+          <!-- Focus areas -->
+          <div>
+            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Audit Focus Areas</h4>
+            <p id="modal-focus" class="text-slate-800 bg-slate-50 p-3 rounded-xl border border-slate-200/80 font-medium"></p>
+          </div>
+
+          <!-- Sentiment Breakdown Bars -->
+          <div>
+            <div class="flex justify-between items-center mb-1.5">
+              <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500">Sentiment Distribution</h4>
+              <span id="modal-positive-headline" class="text-xs font-bold text-emerald-700"></span>
+            </div>
+            <div class="w-full h-4 rounded-full bg-slate-200 overflow-hidden flex" id="modal-sentiment-stacked">
+              <div id="modal-bar-pos" class="bg-emerald-600 h-full" style="width: 0%" title="Positive"></div>
+              <div id="modal-bar-neu" class="bg-amber-400 h-full" style="width: 0%" title="Neutral"></div>
+              <div id="modal-bar-neg" class="bg-rose-500 h-full" style="width: 0%" title="Negative"></div>
+            </div>
+            <div class="grid grid-cols-3 gap-2 mt-2 text-center text-xs">
+              <div class="p-2 bg-emerald-50 rounded-lg text-emerald-900 border border-emerald-200">
+                <span class="block font-bold" id="modal-num-pos">0%</span> Positive
+              </div>
+              <div class="p-2 bg-amber-50 rounded-lg text-amber-900 border border-amber-200">
+                <span class="block font-bold" id="modal-num-neu">0%</span> Neutral
+              </div>
+              <div class="p-2 bg-rose-50 rounded-lg text-rose-900 border border-rose-200">
+                <span class="block font-bold" id="modal-num-neg">0%</span> Negative
+              </div>
+            </div>
+          </div>
+
+          <!-- Key Themes -->
+          <div>
+            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Dominant Qualitative Themes</h4>
+            <div id="modal-themes-container" class="flex flex-wrap gap-2"></div>
+          </div>
+
+          <!-- Community Feedback Quotes / Audit Notes -->
+          <div>
+            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Key Observations & Voice Quotes</h4>
+            <ul id="modal-quotes" class="space-y-2 text-xs"></ul>
+          </div>
+
+          <!-- Recommendation Roadmap -->
+          <div class="bg-emerald-50/70 p-4 rounded-2xl border border-emerald-200">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-uncc-darkgreen flex items-center gap-1.5 mb-1.5">
+              <i class="fa-solid fa-list-check" aria-hidden="true"></i> Remediation & Action Target
+            </h4>
+            <p id="modal-action-target" class="text-xs text-slate-800 leading-relaxed"></p>
+          </div>
+        </div>
+
+        <div class="pt-2 flex justify-end">
+          <button id="modal-close-btn" class="px-5 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-colors">
+            Close Overview
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Interactive Community Feedback Simulation Section -->
+    <section id="feedback-section" class="bg-white rounded-3xl p-6 sm:p-10 shadow-sm border border-slate-200/80">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        <div class="lg:col-span-5 space-y-4">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-uncc-green border border-emerald-200 text-xs font-bold uppercase tracking-wider">
+            <i class="fa-solid fa-bullhorn" aria-hidden="true"></i> Direct Participation
+          </div>
+          <h2 class="text-2xl sm:text-3xl font-black text-slate-900">
+            Contribute Accessibility Observation
+          </h2>
+          <p class="text-sm text-slate-600 leading-relaxed">
+            Have you experienced a physical mobility obstacle, visual barrier, or digital accessibility hurdle on campus? Log your assessment below to immediately simulate updating our campus sentiment telemetry.
+          </p>
+
+          <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs space-y-2 text-slate-600">
+            <div class="font-bold text-slate-800 flex items-center gap-2">
+              <i class="fa-solid fa-shield-halved text-uncc-green" aria-hidden="true"></i>
+              UNC Charlotte Accessibility Compliance Notice
+            </div>
+            <p>
+              Observations directly align with UNC Charlotte Office of Disability Services (ODS) and Facilities Management ADA transition planning.
+            </p>
+          </div>
+        </div>
+
+        <div class="lg:col-span-7 bg-slate-50/80 rounded-2xl p-5 sm:p-7 border border-slate-200">
+          <form id="sentiment-form" class="space-y-4" novalidate>
+            <!-- Target Space Selection -->
+            <div>
+              <label for="form-space-select" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                Campus Location or Digital Service <span class="text-rose-500">*</span>
+              </label>
+              <select id="form-space-select" required class="w-full text-xs sm:text-sm bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 font-medium text-slate-800 focus:ring-2 focus:ring-uncc-green focus:border-uncc-green">
+                <option value="">-- Choose an Audited Space --</option>
+                <option value="urec">UREC (Recreation Center)</option>
+                <option value="fretwell">Fretwell Building</option>
+                <option value="belk-library">Belk Library</option>
+                <option value="brick-pathways">Brick Pathways (Campus-wide)</option>
+                <option value="canvas-lms">Canvas LMS (Digital)</option>
+                <option value="other">Other Campus Facility (New Entry)</option>
+              </select>
+            </div>
+
+            <!-- Custom Location (conditional) -->
+            <div id="custom-space-container" class="hidden">
+              <label for="form-custom-name" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                Specify Location Name <span class="text-rose-500">*</span>
+              </label>
+              <input type="text" id="form-custom-name" placeholder="e.g. Popp Martin Student Union, Woodward Hall" class="w-full text-xs sm:text-sm bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-800 focus:ring-2 focus:ring-uncc-green">
+            </div>
+
+            <!-- Sentiment Rating Selector -->
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                Overall Accessibility Experience <span class="text-rose-500">*</span>
+              </label>
+              <div class="grid grid-cols-3 gap-3">
+                <label class="cursor-pointer border border-slate-300 bg-white p-3 rounded-xl flex flex-col items-center gap-1.5 hover:border-emerald-500 transition-all text-center peer-checked:ring-2">
+                  <input type="radio" name="sentiment-rating" value="positive" class="sr-only peer" required>
+                  <i class="fa-solid fa-face-smile text-emerald-600 text-2xl peer-checked:scale-110"></i>
+                  <span class="text-xs font-bold text-slate-700">Positive</span>
+                  <span class="text-[10px] text-slate-400">Accessible & Smooth</span>
+                </label>
+
+                <label class="cursor-pointer border border-slate-300 bg-white p-3 rounded-xl flex flex-col items-center gap-1.5 hover:border-amber-500 transition-all text-center">
+                  <input type="radio" name="sentiment-rating" value="neutral" class="sr-only peer">
+                  <i class="fa-solid fa-face-meh text-amber-500 text-2xl peer-checked:scale-110"></i>
+                  <span class="text-xs font-bold text-slate-700">Neutral</span>
+                  <span class="text-[10px] text-slate-400">Mixed / Minor Issues</span>
+                </label>
+
+                <label class="cursor-pointer border border-slate-300 bg-white p-3 rounded-xl flex flex-col items-center gap-1.5 hover:border-rose-500 transition-all text-center">
+                  <input type="radio" name="sentiment-rating" value="negative" class="sr-only peer">
+                  <i class="fa-solid fa-face-frown text-rose-600 text-2xl peer-checked:scale-110"></i>
+                  <span class="text-xs font-bold text-slate-700">Negative</span>
+                  <span class="text-[10px] text-slate-400">Barriers / Inaccessible</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Specific Barrier / Qualitative Feedback -->
+            <div>
+              <label for="form-feedback-comment" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                Specific Barrier, Observation, or Commendation <span class="text-rose-500">*</span>
+              </label>
+              <textarea id="form-feedback-comment" rows="3" required placeholder="Describe the accessibility obstacle (e.g. ramp pitch, braille deficiency, elevator outage, lack of audio captions)..." class="w-full text-xs sm:text-sm bg-white border border-slate-300 rounded-xl p-3 text-slate-800 focus:ring-2 focus:ring-uncc-green"></textarea>
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" class="w-full py-3 bg-uncc-green text-white font-bold rounded-xl text-sm hover:bg-uncc-darkgreen transition-all shadow-md shadow-emerald-900/10 flex items-center justify-center gap-2">
+              <i class="fa-solid fa-paper-plane text-uncc-gold" aria-hidden="true"></i>
+              <span>Submit & Update Sentiment Data</span>
+            </button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- Campus Action & Remediation Strategy Matrix -->
+    <section class="space-y-4" aria-labelledby="strategy-heading">
+      <div>
+        <h2 id="strategy-heading" class="text-2xl font-bold text-slate-900">
+          Institutional Action Matrix & Recommendations
+        </h2>
+        <p class="text-sm text-slate-600">Cross-referenced solutions based on user sentiment thresholds and accessibility audits.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Physical Infrastructure -->
+        <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm space-y-3">
+          <div class="w-10 h-10 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center font-bold">
+            <i class="fa-solid fa-hammer" aria-hidden="true"></i>
+          </div>
+          <h3 class="font-bold text-slate-900 text-base">Physical Pathways & Entryways</h3>
+          <p class="text-xs text-slate-600 leading-relaxed">
+            Prioritize mechanical inspections for Fretwell Building elevator hydraulic banks and re-leveling historic brick walkways near main pedestrian arteries.
+          </p>
+          <div class="pt-2 text-[11px] font-semibold text-rose-700 flex items-center gap-1.5">
+            <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>
+            Action: High Immediate Priority
+          </div>
+        </div>
+
+        <!-- Digital Inclusivity -->
+        <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm space-y-3">
+          <div class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">
+            <i class="fa-solid fa-universal-access" aria-hidden="true"></i>
+          </div>
+          <h3 class="font-bold text-slate-900 text-base">Digital Learning & Canvas Ally</h3>
+          <p class="text-xs text-slate-600 leading-relaxed">
+            Automate faculty closed-caption verification workflows on Panopto & Zoom, and mandate OCR compliance for all syllabus documents.
+          </p>
+          <div class="pt-2 text-[11px] font-semibold text-indigo-700 flex items-center gap-1.5">
+            <i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i>
+            Action: Systemic Faculty Training
+          </div>
+        </div>
+
+        <!-- Exemplary Benchmarking -->
+        <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm space-y-3">
+          <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+            <i class="fa-solid fa-award" aria-hidden="true"></i>
+          </div>
+          <h3 class="font-bold text-slate-900 text-base">Replication of UREC Benchmarks</h3>
+          <p class="text-xs text-slate-600 leading-relaxed">
+            Use UREC's 88% satisfaction model (wide aisle turn radiuses, adaptive exercise equipment, clear ramps) as blueprint for future student life renovations.
+          </p>
+          <div class="pt-2 text-[11px] font-semibold text-emerald-700 flex items-center gap-1.5">
+            <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+            Action: Adopt as Design Standard
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-slate-900 text-slate-400 text-xs py-10 mt-16 border-t border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-lg bg-uncc-green flex items-center justify-center text-uncc-gold">
+            <i class="fa-solid fa-graduation-cap text-lg" aria-hidden="true"></i>
+          </div>
+          <div>
+            <p class="font-bold text-white text-sm">UNC Charlotte Disability & Accessibility Sentiment Project</p>
+            <p class="text-slate-400">Promoting universal access across the 49er campus & digital footprint</p>
+          </div>
+        </div>
+        <div class="text-slate-400 text-center sm:text-right">
+          <p>Built with WCAG 2.1 AA Compliance Principles</p>
+          <p class="text-uncc-gold text-[11px]">Charlotte, North Carolina</p>
+        </div>
+      </div>
+      <div class="pt-6 border-t border-slate-800 text-[11px] flex flex-col sm:flex-row items-center justify-between gap-2 text-slate-500">
+        <p>&copy; 2026 UNC Charlotte Accessibility Research. All rights reserved.</p>
+        <p>Data audited: Physical Facilities, Grounds & Digital Courseware.</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Application Logic & Scripts -->
+  <script>
+    /**
+     * Complete Accessibility & Sentiment Dataset for UNC Charlotte
+     * Provided data embedded and augmented with actionable recommendations
+     */
+    const campusData = [
+      {
+        id: 'urec',
+        name: 'UREC (Recreation Center)',
+        category: 'Physical',
+        categoryLabel: 'Physical Campus Space',
+        focus: 'General navigability, ramp access, gym equipment spacing',
+        sentiment: { positive: 88, neutral: 8, negative: 4 },
+        themes: ['Inclusive Design', 'High Satisfaction'],
+        ratingScore: 92,
+        icon: 'fa-dumbbell',
+        badgeColor: 'emerald',
+        auditSummary: 'Ranked highest in campus accessibility. Features expansive turning spaces between weight stacks, accessible hydraulic pool lift, and continuous barrier-free pathway connections.',
+        quotes: [
+          "Wide turning clearance makes navigating between weight machines with a motorized chair seamless.",
+          "Clear, wide exterior ramp and responsive automatic main portal sensors.",
+          "Adaptive fitness accessories are always properly restocked and labeled."
+        ],
+        actionTarget: 'Sustain quarterly preventive maintenance schedule on pool lifts and ensure adaptive personal trainers remain available.'
+      },
+      {
+        id: 'fretwell',
+        name: 'Fretwell Building',
+        category: 'Physical',
+        categoryLabel: 'Academic Physical Facility',
+        focus: 'Automatic doors, elevator reliability, hallway clearance',
+        sentiment: { positive: 32, neutral: 18, negative: 50 },
+        themes: ['Maintenance Delays', 'Mobility Barriers'],
+        ratingScore: 36,
+        icon: 'fa-building',
+        badgeColor: 'rose',
+        auditSummary: 'Significant friction recorded. 50% of respondents identified recurring mobility barriers including sporadic elevator outages and non-functional automated entry doors.',
+        quotes: [
+          "Elevator outages on class switchover days leave students stranded on the ground floor.",
+          "The push-paddle on the north ground entrance is frequently detached or unpowered.",
+          "Hallway congestion during 15-minute changeovers restricts cane and wheelchair transit."
+        ],
+        actionTarget: 'Immediate installation of elevator IoT monitoring sensors and replacement of faulty exterior automatic actuators.'
+      },
+      {
+        id: 'belk-library',
+        name: 'Belk Library',
+        category: 'Physical',
+        categoryLabel: 'Academic Resource Hub',
+        focus: 'Digital accessibility, desk heights, quiet spaces',
+        sentiment: { positive: 75, neutral: 15, negative: 10 },
+        themes: ['Accessible Study Environments'],
+        ratingScore: 82,
+        icon: 'fa-book-open',
+        badgeColor: 'teal',
+        auditSummary: 'Strong positive sentiment for sensory and study accessibility. Motorized adjustable desks and dedicated low-distraction quiet study spaces received high praise.',
+        quotes: [
+          "Motorized sit-stand desks on the 1st floor accommodate various height needs and wheelchairs.",
+          "Sensory-friendly quiet carrels allow neurodivergent students to study with low stimulation.",
+          "Assistive software (JAWS, Kurzweil) is preloaded on several high-contrast monitors."
+        ],
+        actionTarget: 'Improve tactile braille stack indicators on upper book aisles and review glare on research terminal monitors.'
+      },
+      {
+        id: 'brick-pathways',
+        name: 'Brick Pathways (Campus-wide)',
+        category: 'Physical',
+        categoryLabel: 'Campus-wide Grounds',
+        focus: 'Surface evenness, nighttime lighting, tactile paving',
+        sentiment: { positive: 41, neutral: 22, negative: 37 },
+        themes: ['Tripping Hazards', 'Navigation'],
+        ratingScore: 47,
+        icon: 'fa-road',
+        badgeColor: 'amber',
+        auditSummary: 'Historic campus brick walkways present persistent navigation and tripping hazards. 37% negative sentiment fueled by uneven pavers, winter moss slickness, and dark gaps.',
+        quotes: [
+          "White cane tips frequently catch on raised brick edges along the route to the Student Union.",
+          "Rain turns sloped brick walkways into slippery surfaces for crutches and manual chairs.",
+          "Inadequate nighttime lighting between older campus quads obscures elevation shifts."
+        ],
+        actionTarget: 'Accelerate the brick mortar leveling initiative, add contrast edge paint on stepped paths, and install ground-directed LED lighting.'
+      },
+      {
+        id: 'canvas-lms',
+        name: 'Canvas LMS (Digital)',
+        category: 'Digital',
+        categoryLabel: 'Digital Learning System',
+        focus: 'Screen reader compatibility, captioning on lectures',
+        sentiment: { positive: 62, neutral: 25, negative: 13 },
+        themes: ['Inconsistent Media Captioning'],
+        ratingScore: 71,
+        icon: 'fa-laptop-code',
+        badgeColor: 'indigo',
+        auditSummary: 'The core LMS interface maintains solid screen reader compatibility (62% positive), but student feedback notes inconsistent captioning quality across professor-uploaded video lectures.',
+        quotes: [
+          "Core Canvas dashboards work consistently with VoiceOver and screen navigation keys.",
+          "Auto-generated video captions in lectures frequently botch technical terminology and acronyms.",
+          "Uploaded PDF course readings occasionally lack searchable text/OCR tags."
+        ],
+        actionTarget: 'Establish an automated quality-assurance workflow via Canvas Ally requiring faculty to verify video transcripts before publishing modules.'
+      }
+    ];
+
+    // State
+    let currentData = [...campusData];
+    let chartInstance = null;
+    let currentChartMode = 'stacked'; // 'stacked' or 'radar'
+    let currentTypeFilter = 'all';
+    let currentTierFilter = 'all';
+    let currentSearchTerm = '';
+    let isHighContrast = false;
+    let isDyslexicFont = false;
+    let fontSizeMultiplier = 1;
+
+    // DOM Elements
+    const spacesGrid = document.getElementById('spaces-grid');
+    const toast = document.getElementById('toast');
+    const toastMsg = document.getElementById('toast-message');
+    const toastIcon = document.getElementById('toast-icon');
+
+    // Modal elements
+    const detailModal = document.getElementById('detail-modal');
+    const modalTitle = document.getElementById('modal-title');
+    const modalCategory = document.getElementById('modal-category');
+    const modalFocus = document.getElementById('modal-focus');
+    const modalQuotes = document.getElementById('modal-quotes');
+    const modalThemesContainer = document.getElementById('modal-themes-container');
+    const modalActionTarget = document.getElementById('modal-action-target');
+    const modalPosHead = document.getElementById('modal-positive-headline');
+    const modalBarPos = document.getElementById('modal-bar-pos');
+    const modalBarNeu = document.getElementById('modal-bar-neu');
+    const modalBarNeg = document.getElementById('modal-bar-neg');
+    const modalNumPos = document.getElementById('modal-num-pos');
+    const modalNumNeu = document.getElementById('modal-num-neu');
+    const modalNumNeg = document.getElementById('modal-num-neg');
+    const modalClose = document.getElementById('modal-close');
+    const modalCloseBtn = document.getElementById('modal-close-btn');
+
+    /**
+     * Initialize Application
+     */
+    window.addEventListener('DOMContentLoaded', () => {
+      renderCards();
+      initChart();
+      setupEventListeners();
+      updateAveragePositiveMetric();
+    });
+
+    /**
+     * Compute and update aggregate positive metric
+     */
+    function updateAveragePositiveMetric() {
+      if (currentData.length === 0) return;
+      const totalPos = currentData.reduce((acc, item) => acc + item.sentiment.positive, 0);
+      const avg = (totalPos / currentData.length).toFixed(1);
+      document.getElementById('stat-avg-positive').textContent = `${avg}%`;
+    }
+
+    /**
+     * Render Space Cards in Grid
+     */
+    function renderCards() {
+      // Filter logic
+      let filtered = currentData.filter(item => {
+        // Type filter
+        const matchesType = currentTypeFilter === 'all' || item.category === currentTypeFilter;
+        // Tier filter
+        let matchesTier = true;
+        if (currentTierFilter === 'high') matchesTier = item.sentiment.positive >= 70;
+        else if (currentTierFilter === 'moderate') matchesTier = item.sentiment.positive >= 50 && item.sentiment.positive < 70;
+        else if (currentTierFilter === 'critical') matchesTier = item.sentiment.positive < 50;
+
+        // Search term
+        const searchLow = currentSearchTerm.toLowerCase();
+        const matchesSearch = 
+          item.name.toLowerCase().includes(searchLow) ||
+          item.focus.toLowerCase().includes(searchLow) ||
+          item.themes.some(t => t.toLowerCase().includes(searchLow));
+
+        return matchesType && matchesTier && matchesSearch;
+      });
+
+      if (filtered.length === 0) {
+        spacesGrid.innerHTML = `
+          <div class="col-span-full py-12 text-center bg-white rounded-3xl border border-slate-200 p-8">
+            <i class="fa-solid fa-filter-circle-xmark text-4xl text-slate-300 mb-3" aria-hidden="true"></i>
+            <h3 class="text-base font-bold text-slate-800">No matching spaces found</h3>
+            <p class="text-xs text-slate-500 mt-1">Try resetting your filter parameters or search phrase.</p>
+            <button onclick="resetFilters()" class="mt-4 px-4 py-2 bg-uncc-green text-white text-xs font-semibold rounded-lg hover:bg-uncc-darkgreen">
+              Reset Filters
+            </button>
+          </div>
+        `;
+        return;
+      }
+
+      spacesGrid.innerHTML = filtered.map(item => {
+        // Badge color handling
+        let badgeBg = 'bg-emerald-100 text-emerald-800 border-emerald-300';
+        let healthLabel = 'Inclusive Standard';
+        let iconBg = 'bg-emerald-50 text-emerald-700';
+
+        if (item.sentiment.positive < 50) {
+          badgeBg = 'bg-rose-100 text-rose-800 border-rose-300';
+          healthLabel = 'Urgent Remediation';
+          iconBg = 'bg-rose-50 text-rose-700';
+        } else if (item.sentiment.positive < 70) {
+          badgeBg = 'bg-amber-100 text-amber-800 border-amber-300';
+          healthLabel = 'Moderate Friction';
+          iconBg = 'bg-amber-50 text-amber-700';
+        }
+
+        const themesHtml = item.themes.map(t => 
+          `<span class="inline-block text-[11px] font-semibold bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md border border-slate-200">${t}</span>`
+        ).join('');
+
+        return `
+          <article class="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between group focus-within:ring-2 focus-within:ring-uncc-green" aria-label="${item.name}">
+            <div class="space-y-3">
+              <!-- Header Row -->
+              <div class="flex items-start justify-between gap-2">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-xl ${iconBg} flex items-center justify-center text-lg font-bold">
+                    <i class="fa-solid ${item.icon}" aria-hidden="true"></i>
+                  </div>
+                  <div>
+                    <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">${item.categoryLabel}</span>
+                    <h3 class="font-extrabold text-slate-900 text-base group-hover:text-uncc-green transition-colors">${item.name}</h3>
+                  </div>
+                </div>
+                <span class="text-[10px] font-bold px-2.5 py-1 rounded-full border ${badgeBg} whitespace-nowrap">
+                  ${healthLabel}
+                </span>
+              </div>
+
+              <!-- Focus Description -->
+              <p class="text-xs text-slate-600 line-clamp-2">
+                <strong class="text-slate-800">Focus Areas:</strong> ${item.focus}
+              </p>
+
+              <!-- Qualitative Themes -->
+              <div class="flex flex-wrap gap-1.5 pt-1">
+                ${themesHtml}
+              </div>
+
+              <!-- Sentiment Progress Bar -->
+              <div class="pt-2">
+                <div class="flex justify-between text-xs font-semibold mb-1">
+                  <span class="text-slate-600">Sentiment Distribution</span>
+                  <span class="text-emerald-700 font-bold">${item.sentiment.positive}% Pos</span>
+                </div>
+                <div class="w-full h-3 rounded-full bg-slate-100 flex overflow-hidden border border-slate-200/60" title="Pos: ${item.sentiment.positive}%, Neu: ${item.sentiment.neutral}%, Neg: ${item.sentiment.negative}%">
+                  <div class="bg-emerald-600 h-full" style="width: ${item.sentiment.positive}%"></div>
+                  <div class="bg-amber-400 h-full" style="width: ${item.sentiment.neutral}%"></div>
+                  <div class="bg-rose-500 h-full" style="width: ${item.sentiment.negative}%"></div>
+                </div>
+                <div class="flex justify-between text-[10px] text-slate-500 mt-1 font-medium">
+                  <span class="text-emerald-700">${item.sentiment.positive}% Positive</span>
+                  <span class="text-amber-600">${item.sentiment.neutral}% Neutral</span>
+                  <span class="text-rose-600">${item.sentiment.negative}% Negative</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Card Action Footer -->
+            <div class="pt-4 mt-3 border-t border-slate-100 flex items-center justify-between">
+              <span class="text-[11px] text-slate-400">
+                <i class="fa-regular fa-clock mr-1" aria-hidden="true"></i> Audited 2025–2026
+              </span>
+              <button onclick="openDetailModal('${item.id}')" class="inline-flex items-center gap-1.5 text-xs font-bold text-uncc-green hover:text-uncc-darkgreen bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors">
+                <span>Inspect Audit</span>
+                <i class="fa-solid fa-arrow-right text-[10px]" aria-hidden="true"></i>
+              </button>
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    /**
+     * Chart Initialization and Update
+     */
+    function initChart() {
+      const ctx = document.getElementById('sentimentChart').getContext('2d');
+      const labels = currentData.map(d => d.name);
+      const posData = currentData.map(d => d.sentiment.positive);
+      const neuData = currentData.map(d => d.sentiment.neutral);
+      const negData = currentData.map(d => d.sentiment.negative);
+
+      if (chartInstance) {
+        chartInstance.destroy();
+      }
+
+      if (currentChartMode === 'stacked') {
+        chartInstance = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                label: 'Positive Sentiment (%)',
+                data: posData,
+                backgroundColor: '#00703C', // UNCC Green
+                borderRadius: 4
+              },
+              {
+                label: 'Neutral Sentiment (%)',
+                data: neuData,
+                backgroundColor: '#F59E0B', // Amber
+                borderRadius: 4
+              },
+              {
+                label: 'Negative Sentiment (%)',
+                data: negData,
+                backgroundColor: '#E11D48', // Rose
+                borderRadius: 4
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              x: {
+                stacked: true,
+                grid: { display: false },
+                ticks: {
+                  font: { family: 'Inter', size: 11, weight: '600' },
+                  color: '#334155'
+                }
+              },
+              y: {
+                stacked: true,
+                max: 100,
+                ticks: {
+                  callback: value => value + '%',
+                  font: { family: 'Inter', size: 11 },
+                  color: '#64748B'
+                },
+                grid: { color: '#F1F5F9' }
+              }
+            },
+            plugins: {
+              legend: {
+                display: false // Using custom accessible header legend
+              },
+              tooltip: {
+                callbacks: {
+                  label: ctx => ` ${ctx.dataset.label}: ${ctx.raw}%`
+                }
+              }
+            }
+          }
+        });
+      } else {
+        // Radar / Area comparison of spaces
+        chartInstance = new Chart(ctx, {
+          type: 'radar',
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                label: 'Positive Sentiment (%)',
+                data: posData,
+                backgroundColor: 'rgba(0, 112, 60, 0.25)',
+                borderColor: '#00703C',
+                borderWidth: 2,
+                pointBackgroundColor: '#00703C'
+              },
+              {
+                label: 'Negative Sentiment (%)',
+                data: negData,
+                backgroundColor: 'rgba(225, 29, 72, 0.25)',
+                borderColor: '#E11D48',
+                borderWidth: 2,
+                pointBackgroundColor: '#E11D48'
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              r: {
+                angleLines: { color: '#E2E8F0' },
+                grid: { color: '#E2E8F0' },
+                suggestedMin: 0,
+                suggestedMax: 100,
+                ticks: {
+                  callback: v => v + '%',
+                  font: { size: 10 }
+                }
+              }
+            },
+            plugins: {
+              legend: {
+                position: 'top',
+                labels: { font: { family: 'Inter', size: 11, weight: '600' } }
+              }
+            }
+          }
+        });
+      }
+    }
+
+    /**
+     * Modal inspection trigger
+     */
+    window.openDetailModal = function(id) {
+      const item = currentData.find(d => d.id === id);
+      if (!item) return;
+
+      modalTitle.textContent = item.name;
+      modalCategory.textContent = item.categoryLabel;
+      modalFocus.textContent = item.focus;
+      modalActionTarget.textContent = item.actionTarget;
+
+      modalPosHead.textContent = `${item.sentiment.positive}% Community Satisfaction`;
+      modalBarPos.style.width = `${item.sentiment.positive}%`;
+      modalBarNeu.style.width = `${item.sentiment.neutral}%`;
+      modalBarNeg.style.width = `${item.sentiment.negative}%`;
+
+      modalNumPos.textContent = `${item.sentiment.positive}%`;
+      modalNumNeu.textContent = `${item.sentiment.neutral}%`;
+      modalNumNeg.textContent = `${item.sentiment.negative}%`;
+
+      modalThemesContainer.innerHTML = item.themes.map(t => 
+        `<span class="px-2.5 py-1 bg-slate-100 text-slate-800 text-xs font-bold rounded-lg border border-slate-200">${t}</span>`
+      ).join('');
+
+      modalQuotes.innerHTML = item.quotes.map(q => 
+        `<li class="p-3 bg-slate-50 rounded-xl border border-slate-200 text-slate-700 flex items-start gap-2">
+          <i class="fa-solid fa-quote-left text-uncc-gold text-xs mt-0.5" aria-hidden="true"></i>
+          <span>${q}</span>
+        </li>`
+      ).join('');
+
+      detailModal.classList.remove('hidden');
+      modalClose.focus();
+      document.body.style.overflow = 'hidden';
+    };
+
+    function closeModal() {
+      detailModal.classList.add('hidden');
+      document.body.style.overflow = 'auto';
+    }
+
+    modalClose.addEventListener('click', closeModal);
+    modalCloseBtn.addEventListener('click', closeModal);
+    detailModal.addEventListener('click', (e) => {
+      if (e.target === detailModal) closeModal();
+    });
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !detailModal.classList.contains('hidden')) {
+        closeModal();
+      }
+    });
+
+    /**
+     * Reset Filters Helper
+     */
+    window.resetFilters = function() {
+      currentTypeFilter = 'all';
+      currentTierFilter = 'all';
+      currentSearchTerm = '';
+      document.getElementById('space-search').value = '';
+      document.getElementById('filter-tier-select').value = 'all';
+      document.querySelectorAll('.filter-type-btn').forEach(btn => {
+        if (btn.dataset.filter === 'all') {
+          btn.className = 'filter-type-btn px-3 py-1.5 rounded-lg bg-uncc-green text-white font-bold transition-all';
+        } else {
+          btn.className = 'filter-type-btn px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all';
+        }
+      });
+      renderCards();
+    };
+
+    /**
+     * Event Listeners & UI Controls
+     */
+    function setupEventListeners() {
+      // Type Filter Buttons
+      document.querySelectorAll('.filter-type-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.filter-type-btn').forEach(b => {
+            b.className = 'filter-type-btn px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all';
+          });
+          btn.className = 'filter-type-btn px-3 py-1.5 rounded-lg bg-uncc-green text-white font-bold transition-all';
+          currentTypeFilter = btn.dataset.filter;
+          renderCards();
+        });
+      });
+
+      // Tier Filter Select
+      document.getElementById('filter-tier-select').addEventListener('change', (e) => {
+        currentTierFilter = e.target.value;
+        renderCards();
+      });
+
+      // Search Bar
+      document.getElementById('space-search').addEventListener('input', (e) => {
+        currentSearchTerm = e.target.value.trim();
+        renderCards();
+      });
+
+      // Sorting
+      document.getElementById('sort-pos-desc').addEventListener('click', () => {
+        currentData.sort((a, b) => b.sentiment.positive - a.sentiment.positive);
+        renderCards();
+        initChart();
+        showToast('Sorted by Highest Satisfaction', 'fa-check');
+      });
+
+      document.getElementById('sort-neg-desc').addEventListener('click', () => {
+        currentData.sort((a, b) => b.sentiment.negative - a.sentiment.negative);
+        renderCards();
+        initChart();
+        showToast('Sorted by Highest Friction (Action Required)', 'fa-triangle-exclamation');
+      });
+
+      // Chart Mode Toggle Buttons
+      const btnStacked = document.getElementById('view-chart-stacked');
+      const btnRadar = document.getElementById('view-chart-radar');
+
+      btnStacked.addEventListener('click', () => {
+        currentChartMode = 'stacked';
+        btnStacked.className = 'px-3.5 py-1.5 rounded-lg bg-white shadow-sm text-slate-900 font-bold transition-all';
+        btnStacked.setAttribute('aria-selected', 'true');
+        btnRadar.className = 'px-3.5 py-1.5 rounded-lg hover:text-slate-900 transition-all';
+        btnRadar.setAttribute('aria-selected', 'false');
+        initChart();
+      });
+
+      btnRadar.addEventListener('click', () => {
+        currentChartMode = 'radar';
+        btnRadar.className = 'px-3.5 py-1.5 rounded-lg bg-white shadow-sm text-slate-900 font-bold transition-all';
+        btnRadar.setAttribute('aria-selected', 'true');
+        btnStacked.className = 'px-3.5 py-1.5 rounded-lg hover:text-slate-900 transition-all';
+        btnStacked.setAttribute('aria-selected', 'false');
+        initChart();
+      });
+
+      // Jump to report button
+      document.getElementById('btn-jump-report').addEventListener('click', () => {
+        document.getElementById('feedback-section').scrollIntoView({ behavior: 'smooth' });
+        document.getElementById('form-space-select').focus();
+      });
+
+      // Custom space select toggle
+      const formSpaceSelect = document.getElementById('form-space-select');
+      const customSpaceContainer = document.getElementById('custom-space-container');
+      formSpaceSelect.addEventListener('change', (e) => {
+        if (e.target.value === 'other') {
+          customSpaceContainer.classList.remove('hidden');
+          document.getElementById('form-custom-name').required = true;
+        } else {
+          customSpaceContainer.classList.add('hidden');
+          document.getElementById('form-custom-name').required = false;
+        }
+      });
+
+      // Form Submission Simulation
+      const feedbackForm = document.getElementById('sentiment-form');
+      feedbackForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+
+        const selectedSpaceId = formSpaceSelect.value;
+        const selectedRating = feedbackForm.querySelector('input[name="sentiment-rating"]:checked');
+        const comment = document.getElementById('form-feedback-comment').value.trim();
+
+        if (!selectedSpaceId || !selectedRating || !comment) {
+          showToast('Please complete all required fields', 'fa-circle-exclamation');
+          return;
+        }
+
+        const ratingVal = selectedRating.value;
+
+        if (selectedSpaceId === 'other') {
+          const customName = document.getElementById('form-custom-name').value.trim() || 'New Campus Space';
+          const newId = 'custom-' + Date.now();
+          const initialPos = ratingVal === 'positive' ? 80 : (ratingVal === 'neutral' ? 40 : 20);
+          const initialNeu = ratingVal === 'neutral' ? 50 : 20;
+          const initialNeg = ratingVal === 'negative' ? 60 : 10;
+
+          currentData.push({
+            id: newId,
+            name: customName,
+            category: 'Physical',
+            categoryLabel: 'Community Submitted Facility',
+            focus: 'General accessibility & community report',
+            sentiment: { positive: initialPos, neutral: initialNeu, negative: initialNeg },
+            themes: ['Recent Student Report'],
+            ratingScore: initialPos,
+            icon: 'fa-location-dot',
+            badgeColor: initialPos > 60 ? 'emerald' : 'amber',
+            auditSummary: `Newly submitted community evaluation. Reported observation: "${comment}"`,
+            quotes: [comment],
+            actionTarget: 'Site inspection scheduled by Student Disability Advisory Council.'
+          });
+        } else {
+          // Adjust existing space weights
+          const target = currentData.find(d => d.id === selectedSpaceId);
+          if (target) {
+            if (ratingVal === 'positive') {
+              target.sentiment.positive = Math.min(99, target.sentiment.positive + 2);
+              if (target.sentiment.negative > 1) target.sentiment.negative -= 1;
+              if (target.sentiment.neutral > 1) target.sentiment.neutral -= 1;
+            } else if (ratingVal === 'negative') {
+              target.sentiment.negative = Math.min(99, target.sentiment.negative + 2);
+              if (target.sentiment.positive > 2) target.sentiment.positive -= 2;
+            } else {
+              target.sentiment.neutral = Math.min(99, target.sentiment.neutral + 2);
+            }
+            target.quotes.unshift(comment);
+          }
+        }
+
+        renderCards();
+        initChart();
+        updateAveragePositiveMetric();
+
+        feedbackForm.reset();
+        customSpaceContainer.classList.add('hidden');
+        showToast('Assessment logged! Sentiment telemetry updated.', 'fa-circle-check');
+      });
+
+      // Export CSV Data
+      document.getElementById('btn-export-csv').addEventListener('click', exportDataSummary);
+
+      // Accessibility Toolbar Handlers
+      setupAccessibilityToolbar();
+    }
+
+    /**
+     * Accessibility Toolbar Features (High Contrast, Dyslexic Font, Font Scaler, Speech API)
+     */
+    function setupAccessibilityToolbar() {
+      // Font Sizing
+      const fontDec = document.getElementById('btn-font-dec');
+      const fontReset = document.getElementById('btn-font-reset');
+      const fontInc = document.getElementById('btn-font-inc');
+
+      fontDec.addEventListener('click', () => {
+        if (fontSizeMultiplier > 0.85) {
+          fontSizeMultiplier -= 0.08;
+          document.body.style.fontSize = `${fontSizeMultiplier * 100}%`;
+          showToast(`Font size: ${Math.round(fontSizeMultiplier * 100)}%`, 'fa-magnifying-glass-minus');
+        }
+      });
+
+      fontReset.addEventListener('click', () => {
+        fontSizeMultiplier = 1;
+        document.body.style.fontSize = '100%';
+        showToast('Default font scale restored', 'fa-rotate-left');
+      });
+
+      fontInc.addEventListener('click', () => {
+        if (fontSizeMultiplier < 1.35) {
+          fontSizeMultiplier += 0.08;
+          document.body.style.fontSize = `${fontSizeMultiplier * 100}%`;
+          showToast(`Font size: ${Math.round(fontSizeMultiplier * 100)}%`, 'fa-magnifying-glass-plus');
+        }
+      });
+
+      // Dyslexic Font
+      const btnDyslexic = document.getElementById('btn-toggle-dyslexic');
+      btnDyslexic.addEventListener('click', () => {
+        isDyslexicFont = !isDyslexicFont;
+        btnDyslexic.setAttribute('aria-pressed', isDyslexicFont.toString());
+        if (isDyslexicFont) {
+          document.body.classList.add('font-dyslexic');
+          btnDyslexic.classList.add('bg-uncc-gold', 'text-slate-900', 'font-bold');
+          showToast('Hyperlegible font active', 'fa-font');
+        } else {
+          document.body.classList.remove('font-dyslexic');
+          btnDyslexic.classList.remove('bg-uncc-gold', 'text-slate-900', 'font-bold');
+          showToast('Standard font active', 'fa-font');
+        }
+      });
+
+      // Contrast Toggle
+      const btnContrast = document.getElementById('btn-toggle-contrast');
+      const contrastLabel = document.getElementById('contrast-label');
+      btnContrast.addEventListener('click', () => {
+        isHighContrast = !isHighContrast;
+        btnContrast.setAttribute('aria-pressed', isHighContrast.toString());
+        if (isHighContrast) {
+          document.body.classList.add('high-contrast');
+          contrastLabel.textContent = 'Normal View';
+          btnContrast.classList.add('bg-uncc-gold', 'text-slate-900', 'font-bold');
+          showToast('High Contrast Mode On', 'fa-circle-half-stroke');
+        } else {
+          document.body.classList.remove('high-contrast');
+          contrastLabel.textContent = 'High Contrast';
+          btnContrast.classList.remove('bg-uncc-gold', 'text-slate-900', 'font-bold');
+          showToast('Standard Theme On', 'fa-circle-half-stroke');
+        }
+      });
+
+      // Speech Synthesis Audio Summary
+      const btnSpeech = document.getElementById('btn-speech-brief');
+      const speechText = document.getElementById('speech-btn-text');
+      let isSpeaking = false;
+
+      btnSpeech.addEventListener('click', () => {
+        if (!('speechSynthesis' in window)) {
+          showToast('Speech API not supported in this browser.', 'fa-circle-exclamation');
+          return;
+        }
+
+        if (isSpeaking) {
+          window.speechSynthesis.cancel();
+          isSpeaking = false;
+          speechText.textContent = 'Listen Summary';
+          btnSpeech.classList.remove('bg-red-500', 'text-white');
+          btnSpeech.classList.add('bg-uncc-gold', 'text-slate-900');
+          showToast('Audio reading stopped', 'fa-volume-xmark');
+        } else {
+          const briefing = `
+            UNC Charlotte Accessibility Sentiment Summary. 
+            Overall campus positive sentiment is fifty-nine point six percent.
+            UREC leads with eighty-eight percent positive satisfaction for wide equipment spacing and ramp access. 
+            Fretwell Building registers fifty percent negative sentiment due to frequent elevator outages and automatic door issues.
+            Belk Library received seventy-five percent positive approval for quiet spaces and adjustable desks.
+            Brick Pathways face thirty-seven percent negative sentiment from uneven surfaces and tripping risks.
+            Canvas LMS has sixty-two percent positive feedback, with recommendations focused on consistent lecture video captions.
+          `;
+
+          const utterance = new SpeechSynthesisUtterance(briefing);
+          utterance.rate = 0.95;
+          utterance.onend = () => {
+            isSpeaking = false;
+            speechText.textContent = 'Listen Summary';
+            btnSpeech.classList.remove('bg-red-500', 'text-white');
+            btnSpeech.classList.add('bg-uncc-gold', 'text-slate-900');
+          };
+
+          window.speechSynthesis.speak(utterance);
+          isSpeaking = true;
+          speechText.textContent = 'Stop Reading';
+          btnSpeech.classList.add('bg-red-500', 'text-white');
+          btnSpeech.classList.remove('bg-uncc-gold', 'text-slate-900');
+          showToast('Reading audio summary aloud...', 'fa-volume-high');
+        }
+      });
+    }
+
+    /**
+     * Toast notification utility (No alert() used)
+     */
+    function showToast(message, iconClass = 'fa-circle-check') {
+      toastMsg.textContent = message;
+      toastIcon.className = `fa-solid ${iconClass} text-emerald-400 text-lg`;
+      toast.classList.remove('translate-y-32', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+
+      setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('translate-y-32', 'opacity-0');
+      }, 3500);
+    }
+
+    /**
+     * Export CSV Summary Function
+     */
+    function exportDataSummary() {
+      let csvContent = "Location,Category,Focus Areas,Positive (%),Neutral (%),Negative (%),Key Themes\n";
+      currentData.forEach(item => {
+        const row = [
+          `"${item.name}"`,
+          `"${item.category}"`,
+          `"${item.focus}"`,
+          `${item.sentiment.positive}`,
+          `${item.sentiment.neutral}`,
+          `${item.sentiment.negative}`,
+          `"${item.themes.join('; ')}"`
+        ].join(",");
+        csvContent += row + "\n";
+      });
+
+      // Safe clipboard copy
+      const tempTextArea = document.createElement("textarea");
+      tempTextArea.value = csvContent;
+      document.body.appendChild(tempTextArea);
+      tempTextArea.select();
+      try {
+        document.execCommand('copy');
+        showToast('CSV data copied to clipboard!', 'fa-clipboard-check');
+      } catch (err) {
+        showToast('Unable to copy CSV to clipboard', 'fa-triangle-exclamation');
+      }
+      document.body.removeChild(tempTextArea);
+    }
+  </script>
+</body>
+</html>
